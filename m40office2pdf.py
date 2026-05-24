@@ -1,11 +1,13 @@
 import os
 import tempfile
-import win32com.client
-import pythoncom
 import fitz  # PyMuPDF
 
 def convert_word_to_pdf(input_path, output_path):
+    import pythoncom
+    import win32com.client
+
     pythoncom.CoInitialize()
+    word = None
     try:
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
@@ -16,12 +18,17 @@ def convert_word_to_pdf(input_path, output_path):
     except Exception as e:
         print(f"Word変換エラー: {e}")
     finally:
-        word.Quit()
-        del word
+        if word:
+            word.Quit()
+            del word
         pythoncom.CoUninitialize()
 
 def convert_excel_to_pdf_with_bookmarks(input_path, output_path):
+    import pythoncom
+    import win32com.client
+
     pythoncom.CoInitialize()
+    excel = None
     try:
         excel = win32com.client.Dispatch("Excel.Application")
         excel.DisplayAlerts = False
@@ -46,8 +53,9 @@ def convert_excel_to_pdf_with_bookmarks(input_path, output_path):
     except Exception as e:
         print(f"Excel変換エラー: {e}")
     finally:
-        excel.Quit()
-        del excel
+        if excel:
+            excel.Quit()
+            del excel
         pythoncom.CoUninitialize()
 
 def remove_pdf_bookmarks(pdf_path):
@@ -62,6 +70,9 @@ def remove_pdf_bookmarks(pdf_path):
 
 
 def convert_pptx_to_pdf(input_path, output_path, ppt_slide_bookmarks=True):
+    import pythoncom
+    import win32com.client
+
     pythoncom.CoInitialize()
     ppt_app = None
     try:
