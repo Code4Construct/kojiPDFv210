@@ -71,15 +71,35 @@ jobs:
       - name: Build MSI with WiX Toolset
         shell: powershell
         run: |
-          $wixBin = "${env:ProgramFiles(x86)}\WiX Toolset v3.11\bin"
-          $heat = Join-Path $wixBin "heat.exe"
-          $candle = Join-Path $wixBin "candle.exe"
-          $light = Join-Path $wixBin "light.exe"
-          foreach ($tool in @($heat, $candle, $light)) {
-            if (-not (Test-Path $tool)) {
-              throw "WiX tool was not found: $tool"
+          function Find-WixTool($name) {
+            $command = Get-Command $name -ErrorAction SilentlyContinue
+            if ($command) {
+              return $command.Source
             }
+
+            $roots = @(
+              "${env:ProgramFiles(x86)}",
+              "${env:ProgramFiles}"
+            ) | Where-Object { $_ -and (Test-Path $_) }
+
+            foreach ($root in $roots) {
+              $match = Get-ChildItem -Path $root -Filter $name -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -like "*WiX*" } |
+                Select-Object -First 1
+              if ($match) {
+                return $match.FullName
+              }
+            }
+
+            throw "WiX tool was not found: $name"
           }
+
+          $heat = Find-WixTool "heat.exe"
+          $candle = Find-WixTool "candle.exe"
+          $light = Find-WixTool "light.exe"
+          Write-Host "Using heat: $heat"
+          Write-Host "Using candle: $candle"
+          Write-Host "Using light: $light"
 
           New-Item -ItemType Directory -Force -Path "installer\wixobj" | Out-Null
           & $heat dir "installer\msi-source" `
