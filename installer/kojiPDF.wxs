@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="kojiPDF"
+    Language="1041"
+    Version="2.1.0"
+    Manufacturer="Code4Construct"
+    UpgradeCode="{BA3A6517-33F2-4E98-9BB7-BB7A56E9563D}">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64"
+      Description="kojiPDF PDF tool" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of kojiPDF is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.ProjectDir)\assets\icons\smallicon_v2.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
+    <Feature Id="MainFeature" Title="kojiPDF" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcuts" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="kojiPDF" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="kojiPDF">
+          <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="{C07E07F4-A7DB-4E8E-AE31-372E06255D0E}">
+            <Shortcut
+              Id="ApplicationStartMenuShortcut"
+              Name="kojiPDF"
+              Description="Launch kojiPDF"
+              Target="[INSTALLFOLDER]kojiPDFv2.exe"
+              WorkingDirectory="INSTALLFOLDER"
+              Icon="AppIcon.ico" />
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Code4Construct\kojiPDF"
+              Name="installed"
+              Type="integer"
+              Value="1"
+              KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+  </Product>
+</Wix>

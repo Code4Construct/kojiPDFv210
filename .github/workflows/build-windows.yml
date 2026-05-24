@@ -34,6 +34,10 @@ jobs:
         shell: powershell
         run: choco install innosetup --yes --no-progress
 
+      - name: Install WiX Toolset
+        shell: powershell
+        run: choco install wixtoolset --yes --no-progress
+
       - name: Build installer with Inno Setup
         shell: powershell
         run: |
@@ -52,9 +56,75 @@ jobs:
           }
           Get-Item $installer | Select-Object FullName, Length, LastWriteTime
 
+      - name: Prepare MSI source folder
+        shell: powershell
+        run: |
+          $source = "installer\msi-source"
+          if (Test-Path $source) {
+            Remove-Item $source -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $source | Out-Null
+          Copy-Item "kojiPDFv2.dist\*" $source -Recurse
+          Copy-Item "README.md" $source
+          Copy-Item "LICENSE" $source
+
+      - name: Build MSI with WiX Toolset
+        shell: powershell
+        run: |
+          $wixBin = "${env:ProgramFiles(x86)}\WiX Toolset v3.11\bin"
+          $heat = Join-Path $wixBin "heat.exe"
+          $candle = Join-Path $wixBin "candle.exe"
+          $light = Join-Path $wixBin "light.exe"
+          foreach ($tool in @($heat, $candle, $light)) {
+            if (-not (Test-Path $tool)) {
+              throw "WiX tool was not found: $tool"
+            }
+          }
+
+          New-Item -ItemType Directory -Force -Path "installer\wixobj" | Out-Null
+          & $heat dir "installer\msi-source" `
+            -cg AppFiles `
+            -dr INSTALLFOLDER `
+            -srd `
+            -sreg `
+            -gg `
+            -var var.SourceDir `
+            -out "installer\HarvestedFiles.wxs"
+
+          & $candle `
+            -nologo `
+            -arch x64 `
+            -dSourceDir="installer\msi-source" `
+            -dProjectDir="$pwd" `
+            -out "installer\wixobj\" `
+            "installer\kojiPDF.wxs" `
+            "installer\HarvestedFiles.wxs"
+
+          & $light `
+            -nologo `
+            -out "installer\output\kojiPDF_Setup_2.1.0.msi" `
+            "installer\wixobj\kojiPDF.wixobj" `
+            "installer\wixobj\HarvestedFiles.wixobj"
+
+      - name: Verify MSI output
+        shell: powershell
+        run: |
+          $installer = "installer\output\kojiPDF_Setup_2.1.0.msi"
+          if (-not (Test-Path $installer)) {
+            throw "MSI was not generated: $installer"
+          }
+          Get-Item $installer | Select-Object FullName, Length, LastWriteTime
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: kojiPDF_Setup_2.1.0
           path: installer/output/kojiPDF_Setup_2.1.0.exe
+          if-no-files-found: error
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kojiPDF_Setup_2.1.0_msi
+          path: installer/output/kojiPDF_Setup_2.1.0.msi
           if-no-files-found: error
