@@ -32,7 +32,7 @@
       </Directory>
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="kojiPDF">
-          <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="{C07E07F4-A7DB-4E8E-AE31-372E06255D0E}">
+          <Component Id="ApplicationShortcuts" Guid="{C07E07F4-A7DB-4E8E-AE31-372E06255D0E}">
             <Shortcut
               Id="ApplicationStartMenuShortcut"
               Name="kojiPDF"
