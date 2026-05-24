@@ -20,16 +20,22 @@
 
     <Icon Id="AppIcon.ico" SourceFile="$(var.ProjectDir)\assets\icons\smallicon_v2.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)\installer\license.rtf" />
+    <UIRef Id="WixUI_InstallDir" />
+    <UIRef Id="WixUI_ErrorProgressText" />
 
     <Feature Id="MainFeature" Title="kojiPDF" Level="1">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="ApplicationShortcuts" />
+      <ComponentRef Id="DesktopShortcut" />
     </Feature>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="INSTALLFOLDER" Name="kojiPDF" />
       </Directory>
+      <Directory Id="DesktopFolder" />
       <Directory Id="ProgramMenuFolder">
         <Directory Id="ApplicationProgramsFolder" Name="kojiPDF">
           <Component Id="ApplicationShortcuts" Guid="{C07E07F4-A7DB-4E8E-AE31-372E06255D0E}">
@@ -52,5 +58,24 @@
         </Directory>
       </Directory>
     </Directory>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="{53E459D1-9056-4420-82B7-92121BC7A7DC}">
+        <Shortcut
+          Id="ApplicationDesktopShortcut"
+          Name="kojiPDF"
+          Description="Launch kojiPDF"
+          Target="[INSTALLFOLDER]kojiPDFv2.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="AppIcon.ico" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\Code4Construct\kojiPDF"
+          Name="desktopShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
   </Product>
 </Wix>

@@ -114,6 +114,7 @@ jobs:
           & $candle `
             -nologo `
             -arch x64 `
+            -ext WixUIExtension `
             -dSourceDir="installer\msi-source" `
             -dProjectDir="$pwd" `
             -out "installer\wixobj\" `
@@ -122,6 +123,7 @@ jobs:
 
           & $light `
             -nologo `
+            -ext WixUIExtension `
             -out "installer\output\kojiPDF_Setup_2.1.0.msi" `
             "installer\wixobj\kojiPDF.wixobj" `
             "installer\wixobj\HarvestedFiles.wixobj"
