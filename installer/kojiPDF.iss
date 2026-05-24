@@ -27,8 +27,8 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 OutputDir=output
 OutputBaseFilename={#MyAppName}_Setup_{#MyAppVersion}
-Compression=lzma
-SolidCompression=yes
+Compression=zip
+SolidCompression=no
 WizardStyle=modern
 
 [Languages]
