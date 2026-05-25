@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-installer:
-    name: Build kojiPDF_Setup_2.1.0.exe
+    name: Build kojiPDF_Setup_2.1.0 installers
     runs-on: windows-latest
 
     steps:
@@ -65,8 +65,6 @@ jobs:
           }
           New-Item -ItemType Directory -Path $source | Out-Null
           Copy-Item "kojiPDFv2.dist\*" $source -Recurse
-          Copy-Item "README.md" $source
-          Copy-Item "LICENSE" $source
 
       - name: Build MSI with WiX Toolset
         shell: powershell
@@ -115,6 +113,7 @@ jobs:
             -nologo `
             -arch x64 `
             -ext WixUIExtension `
+            -ext WixUtilExtension `
             -dSourceDir="installer\msi-source" `
             -dProjectDir="$pwd" `
             -out "installer\wixobj\" `
@@ -124,6 +123,7 @@ jobs:
           & $light `
             -nologo `
             -ext WixUIExtension `
+            -ext WixUtilExtension `
             -out "installer\output\kojiPDF_Setup_2.1.0.msi" `
             "installer\wixobj\kojiPDF.wixobj" `
             "installer\wixobj\HarvestedFiles.wixobj"

@@ -22,18 +22,31 @@
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)\installer\license.rtf" />
-    <UIRef Id="WixUI_InstallDir" />
-    <UIRef Id="WixUI_ErrorProgressText" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Open README.md" />
+    <Property Id="WixShellExecTarget" Value="[#ReadmeFile]" />
+    <CustomAction Id="OpenReadme" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+
+    <UI>
+      <UIRef Id="WixUI_InstallDir" />
+      <UIRef Id="WixUI_ErrorProgressText" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="OpenReadme">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
 
     <Feature Id="MainFeature" Title="kojiPDF" Level="1">
       <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="DocumentationFiles" />
       <ComponentRef Id="ApplicationShortcuts" />
       <ComponentRef Id="DesktopShortcut" />
     </Feature>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="kojiPDF" />
+        <Directory Id="INSTALLFOLDER" Name="kojiPDF">
+          <Component Id="DocumentationFiles" Guid="{8B7ED622-6758-4068-8CC8-9B1C65742114}">
+            <File Id="ReadmeFile" Source="$(var.ProjectDir)\README.md" KeyPath="yes" />
+            <File Id="LicenseFile" Source="$(var.ProjectDir)\LICENSE" />
+          </Component>
+        </Directory>
       </Directory>
       <Directory Id="DesktopFolder" />
       <Directory Id="ProgramMenuFolder">
