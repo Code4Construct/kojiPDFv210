@@ -27,6 +27,15 @@ from tkinter import filedialog, messagebox, scrolledtext
 import ttkbootstrap as tb
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 
+WINDOW_WIDTH = 1040
+WINDOW_HEIGHT = 850
+CONTENT_MAX_WIDTH = 1020
+MIN_WINDOW_WIDTH = 960
+MIN_WINDOW_HEIGHT = 560
+SCREEN_MARGIN_WIDTH = 40
+SCREEN_MARGIN_HEIGHT = 70
+WINDOW_HEIGHT_PADDING = 12
+
 
 def find_resource_path(filename):
     candidate_roots = [
@@ -207,8 +216,8 @@ class FileSelectorApp:
 
         self.window = tb.Window(themename="flatly")
         self.window.title("kojiPDF - Built with Python by Code4Construct")
-        self.window.geometry("790x665")
-        self.window.minsize(760, 640)
+        self.window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+        self.window.minsize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         self.window.configure(bg="#e7ecf2")
         self.window.protocol("WM_DELETE_WINDOW", self.cancel)
 
@@ -240,9 +249,10 @@ class FileSelectorApp:
         style.configure("Run.TButton", font=("Yu Gothic UI", 12, "bold"), padding=(26, 10))
 
         root = tb.Frame(self.window, style="Koji.TFrame", padding=(14, 8, 14, 8))
-        root.pack(fill="both", expand=True)
+        root.place(relx=0.5, y=0, anchor="n", width=CONTENT_MAX_WIDTH)
+        self.root_frame = root
 
-        header = tk.Frame(root, bg="#ffffff", height=42)
+        header = tk.Frame(root, bg="#ffffff", height=38)
         header.pack_propagate(False)
         header.pack(fill="x", pady=(0, 6))
         header.columnconfigure(0, minsize=96)
@@ -265,17 +275,17 @@ class FileSelectorApp:
         self.english_button.pack(side="right", padx=(6, 0))
         self.japanese_button.pack(side="right", padx=(6, 0))
 
-        intro_panel = tb.Frame(root, style="Panel.TFrame", height=76, padding=(8, 6))
-        intro_panel.pack_propagate(False)
-        intro_panel.pack(fill="x", pady=(0, 6))
+        intro_panel = tb.Frame(root, style="Panel.TFrame", padding=(8, 4))
+        intro_panel.pack(fill="x", pady=(0, 4))
 
         self.subtitle_label = tb.Label(intro_panel, style="IntroSubtitle.TLabel", wraplength=720)
 
-        notice_panel = tk.Frame(intro_panel, bg="#ffffff", height=64)
-        notice_panel.pack_propagate(False)
+        notice_panel = tk.Frame(intro_panel, bg="#ffffff")
         notice_panel.columnconfigure(0, minsize=70)
         notice_panel.columnconfigure(1, weight=1)
+        notice_panel.rowconfigure(0, weight=1)
         notice_panel.pack(fill="x", expand=True)
+        self.notice_panel = notice_panel
         self.intro_icon_image = make_intro_icon_image()
 
         if self.intro_icon_image is not None:
@@ -300,21 +310,23 @@ class FileSelectorApp:
             )
         self.intro_icon_label.grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.notice_label = tb.Label(notice_panel, style="Notice.TLabel", wraplength=630, justify="left")
-        self.notice_label.grid(row=0, column=1, sticky="nsew")
+        self.notice_label.grid(row=0, column=1, sticky="ew")
+        notice_panel.bind("<Configure>", self._sync_notice_wraplength)
 
-        top_panel = tk.Frame(root, bg="#ffffff", padx=10, pady=10)
-        top_panel.pack(fill="x", pady=(0, 6))
+        top_panel = tk.Frame(root, bg="#ffffff", padx=10, pady=8)
+        top_panel.pack(fill="x", pady=(0, 4))
         top_panel.columnconfigure(1, weight=1)
+        self.top_panel = top_panel
         self.folder_button = tb.Button(top_panel, bootstyle="secondary-outline", command=self.select_folder)
-        self.folder_button.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=3)
+        self.folder_button.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=2)
         self.folder_text = tk.StringVar()
         self.folder_label = tb.Label(top_panel, textvariable=self.folder_text, style="Path.TLabel", wraplength=560)
-        self.folder_label.grid(row=0, column=1, sticky="ew", pady=3)
+        self.folder_label.grid(row=0, column=1, sticky="ew", pady=2)
         self.file_button = tb.Button(top_panel, bootstyle="secondary-outline", command=self.select_save_file)
-        self.file_button.grid(row=1, column=0, sticky="ew", padx=(0, 10), pady=3)
+        self.file_button.grid(row=1, column=0, sticky="ew", padx=(0, 10), pady=2)
         self.file_text = tk.StringVar()
         self.file_label = tb.Label(top_panel, textvariable=self.file_text, style="Path.TLabel", wraplength=560)
-        self.file_label.grid(row=1, column=1, sticky="ew", pady=3)
+        self.file_label.grid(row=1, column=1, sticky="ew", pady=2)
         self.run_button = tk.Label(
             top_panel,
             bd=0,
@@ -337,9 +349,9 @@ class FileSelectorApp:
         self._build_scale_options()
         self._build_asp_options()
 
-        license_notice_panel = tb.Frame(root, style="LicensePanel.TFrame", height=56, padding=(8, 8, 8, 8))
-        license_notice_panel.pack_propagate(False)
+        license_notice_panel = tb.Frame(root, style="LicensePanel.TFrame", padding=(6, 5, 6, 5))
         license_notice_panel.pack(fill="x")
+        self.license_notice_panel = license_notice_panel
         license_inner_panel = tb.Frame(license_notice_panel, style="LicenseInner.TFrame")
         license_inner_panel.pack(fill="both", expand=True)
         self.license_notice_label = tb.Label(
@@ -351,13 +363,13 @@ class FileSelectorApp:
         self.license_notice_label.pack(fill="x", expand=True)
         self._draw_run_button()
 
-    def _band(self, row, title_attr, parent=None, column=0, columnspan=1, padx=(0, 0), pady=(0, 6)):
+    def _band(self, row, title_attr, parent=None, column=0, columnspan=1, padx=(0, 0), pady=(0, 4)):
         parent = parent or self.options_group
-        frame = tb.Frame(parent, style="Band.TFrame", padding=10)
+        frame = tb.Frame(parent, style="Band.TFrame", padding=(8, 7))
         frame.grid(row=row, column=column, columnspan=columnspan, sticky="nsew", padx=padx, pady=pady)
         frame.columnconfigure(0, weight=1)
         title_label = tb.Label(frame, style="Section.TLabel")
-        title_label.grid(row=0, column=0, sticky="w", columnspan=8, pady=(0, 6))
+        title_label.grid(row=0, column=0, sticky="w", columnspan=8, pady=(0, 4))
         setattr(self, title_attr, title_label)
         return frame
 
@@ -731,6 +743,36 @@ class FileSelectorApp:
         summary, license_notice = notice.split(marker, 1)
         return summary.strip(), marker.strip() + license_notice
 
+    def _sync_notice_wraplength(self, event=None):
+        if event is None:
+            available_width = self.notice_label.winfo_width()
+            if available_width <= 1:
+                self._sync_dynamic_wraplengths()
+                return
+        else:
+            available_width = event.width - 78
+
+        wraplength = max(300, available_width)
+        self.notice_label.configure(wraplength=wraplength)
+
+    def _sync_dynamic_wraplengths(self, content_width=None):
+        if content_width is None:
+            content_width = self.root_frame.winfo_width()
+            if content_width <= 1:
+                content_width = min(CONTENT_MAX_WIDTH, WINDOW_WIDTH)
+
+        root_horizontal_padding = 28
+        notice_panel_padding_and_icon = 94
+        license_panel_padding = 44
+        path_controls_width = 250
+
+        inner_width = max(300, content_width - root_horizontal_padding)
+        self.subtitle_label.configure(wraplength=max(300, inner_width - 16))
+        self.notice_label.configure(wraplength=max(300, inner_width - notice_panel_padding_and_icon))
+        self.license_notice_label.configure(wraplength=max(300, inner_width - license_panel_padding))
+        self.folder_label.configure(wraplength=max(300, inner_width - path_controls_width))
+        self.file_label.configure(wraplength=max(300, inner_width - path_controls_width))
+
     def _apply_language(self):
         self.window.title(self._text("window_title"))
         self.title_label.configure(text=self._text("title"), bg="#ffffff", fg="#0f1f2f")
@@ -742,6 +784,7 @@ class FileSelectorApp:
         self.license_notice_label.configure(font=("Yu Gothic UI", license_font_size))
         self.notice_label.configure(text=notice_text)
         self.license_notice_label.configure(text=license_notice_text)
+        self.window.after_idle(self._sync_notice_wraplength)
         self.folder_button.configure(text=self._text("select_folder"))
         self.file_button.configure(text=self._text("output"))
         self.general_section_label.configure(text=self._text("general_options"))
@@ -785,10 +828,31 @@ class FileSelectorApp:
         self.save_mode_var.set(mode_labels.get(self.save_mode_key, mode_labels["fast"]))
 
     def show(self):
+        self._fit_window_to_screen()
         self._center_window()
         self.window.after(0, self._bring_to_front)
         debug_log("Window shown")
         self.window.mainloop()
+
+    def _fit_window_to_screen(self):
+        self.window.update_idletasks()
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        available_width = max(MIN_WINDOW_WIDTH, screen_width - SCREEN_MARGIN_WIDTH)
+        available_height = max(MIN_WINDOW_HEIGHT, screen_height - SCREEN_MARGIN_HEIGHT)
+        width = min(WINDOW_WIDTH, available_width)
+        content_width = min(CONTENT_MAX_WIDTH, width)
+        self.root_frame.place_configure(width=content_width)
+        self.window.geometry(f"{width}x{WINDOW_HEIGHT}")
+        self.window.update_idletasks()
+        self._sync_dynamic_wraplengths(content_width)
+        self.window.update_idletasks()
+        requested_height = self.root_frame.winfo_reqheight() + WINDOW_HEIGHT_PADDING
+        max_height = min(WINDOW_HEIGHT, available_height)
+        height = min(max(MIN_WINDOW_HEIGHT, requested_height), max_height)
+        self.window.geometry(f"{width}x{height}")
+        self.window.minsize(min(MIN_WINDOW_WIDTH, width), min(MIN_WINDOW_HEIGHT, height))
+        self.window.update_idletasks()
 
     def _center_window(self):
         self.window.update_idletasks()
