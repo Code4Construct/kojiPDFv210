@@ -29,10 +29,10 @@ from tkinter import filedialog, messagebox, scrolledtext
 import ttkbootstrap as tb
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 
-WINDOW_WIDTH = 1040
+WINDOW_WIDTH = 900
 WINDOW_HEIGHT = 850
-CONTENT_MAX_WIDTH = 1020
-MIN_WINDOW_WIDTH = 960
+CONTENT_MAX_WIDTH = 880
+MIN_WINDOW_WIDTH = 860
 MIN_WINDOW_HEIGHT = 560
 SCREEN_MARGIN_WIDTH = 40
 SCREEN_MARGIN_HEIGHT = 70
