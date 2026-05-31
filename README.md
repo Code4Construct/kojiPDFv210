@@ -2,9 +2,9 @@
 
 ## 概要 / Overview
 
-kojiPDF は、選択したフォルダ内の PDF ファイルを結合し、ファイル名をしおり、フォルダ名を親しおりとして追加した構造化 PDF を作成する Windows 向けアプリです。工事検査資料の整理、情報共有システムの電子データ確認、ペーパーレス会議資料の作成・閲覧などに利用できます。
+kojiPDF は、選択したフォルダ内の PDF ファイルを結合し、ファイル名をしおり、フォルダ名を親しおりとして追加した構造化 PDF を作成する Windows 向けアプリです。工事検査資料の整理、情報共有システムの電子データ確認、ペーパーレス会議資料の作成などに利用できます。
 
-kojiPDF creates a structured PDF by merging PDF files in a selected folder and adding bookmarks from file and folder names. It is designed for organizing construction inspection documents, reviewing information-sharing system records, and preparing or viewing paperless meeting materials.
+kojiPDF creates a structured PDF by merging PDF files in a selected folder and adding bookmarks from file and folder names. It is designed for organizing construction inspection documents, reviewing information-sharing system records, and preparing paperless meeting materials.
 
 ## 主な機能 / Key Features
 
