@@ -185,8 +185,11 @@ def create_pdf(
     os.remove(temp_output_path)
 
     if exist_w_e_file:
-        confirmation_dialog.main(f"{folder_path}を削除します。\nよろしいですか。")
-        shutil.rmtree(folder_path)
+        should_delete_folder = confirmation_dialog.main(f"{folder_path}を削除します。\nよろしいですか。")
+        if should_delete_folder:
+            shutil.rmtree(folder_path)
+        else:
+            print(f"フォルダ削除をキャンセルしました: {folder_path}")
 
     print(f"PDF作成が完了しました: {output_file_path}")
 
