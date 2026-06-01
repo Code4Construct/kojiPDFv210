@@ -150,14 +150,21 @@ jobs:
             [Convert]::FromBase64String("${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}")
           )
 
-          $certificatePassword = ConvertTo-SecureString "${{ secrets.WINDOWS_CODESIGN_PASSWORD }}" -AsPlainText -Force
-          $certificate = Import-PfxCertificate `
-            -FilePath $certificatePath `
-            -CertStoreLocation Cert:\CurrentUser\My `
-            -Password $certificatePassword
+          $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $certificatePath,
+            "${{ secrets.WINDOWS_CODESIGN_PASSWORD }}",
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+          )
+          if (-not $certificate.HasPrivateKey) {
+            throw "Code signing certificate does not contain a private key."
+          }
+          Write-Host "Restored code signing certificate: $($certificate.Subject)"
 
           $publicCertificatePath = Join-Path $env:RUNNER_TEMP "code4construct-codesign.cer"
-          Export-Certificate -Cert $certificate -FilePath $publicCertificatePath | Out-Null
+          [IO.File]::WriteAllBytes(
+            $publicCertificatePath,
+            $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+          )
           Import-Certificate -FilePath $publicCertificatePath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
           Import-Certificate -FilePath $publicCertificatePath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
 
