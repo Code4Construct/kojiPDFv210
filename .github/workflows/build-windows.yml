@@ -162,6 +162,7 @@ jobs:
           Write-Host "Restored code signing certificate: $($certificate.Subject)"
 
           "CODESIGN_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CODESIGN_CERTIFICATE_THUMBPRINT=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Find SignTool
         if: steps.plan.outputs.run_nuitka == 'true' || steps.plan.outputs.run_wxs == 'true'
@@ -202,7 +203,14 @@ jobs:
             /d "kojiPDF" `
             $exe
 
-          & "$env:SIGNTOOL" verify /pa /v $exe
+          $signature = Get-AuthenticodeSignature -FilePath $exe
+          if ($null -eq $signature.SignerCertificate) {
+            throw "Nuitka executable does not have an Authenticode signer certificate."
+          }
+          if ($signature.SignerCertificate.Thumbprint -ne $env:CODESIGN_CERTIFICATE_THUMBPRINT) {
+            throw "Nuitka executable was signed by unexpected certificate: $($signature.SignerCertificate.Thumbprint)"
+          }
+          Write-Host "Nuitka executable is signed by: $($signature.SignerCertificate.Subject)"
 
       - name: Upload Nuitka dist artifact
         if: steps.plan.outputs.run_nuitka == 'true'
@@ -349,7 +357,14 @@ jobs:
             /d "kojiPDF Installer" `
             $installer
 
-          & "$env:SIGNTOOL" verify /pa /v $installer
+          $signature = Get-AuthenticodeSignature -FilePath $installer
+          if ($null -eq $signature.SignerCertificate) {
+            throw "MSI installer does not have an Authenticode signer certificate."
+          }
+          if ($signature.SignerCertificate.Thumbprint -ne $env:CODESIGN_CERTIFICATE_THUMBPRINT) {
+            throw "MSI installer was signed by unexpected certificate: $($signature.SignerCertificate.Thumbprint)"
+          }
+          Write-Host "MSI installer is signed by: $($signature.SignerCertificate.Subject)"
 
       - name: Verify MSI output
         if: steps.plan.outputs.run_wxs == 'true'
