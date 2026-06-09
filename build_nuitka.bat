@@ -7,6 +7,8 @@ python -m nuitka ^
   --standalone ^
   --remove-output ^
   --assume-yes-for-downloads ^
+  --jobs=1 ^
+  --low-memory ^
   --enable-plugin=tk-inter ^
   --noinclude-custom-mode=matplotlib:nofollow ^
   --noinclude-custom-mode=scipy:nofollow ^
