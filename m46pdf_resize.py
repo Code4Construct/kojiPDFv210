@@ -60,6 +60,24 @@ def get_content_rect(page, padding=4):
     return content_rect
 
 
+def has_annotations(doc):
+    return any(page.first_annot is not None for page in doc)
+
+
+def bake_annotations_into_content(doc):
+    if not has_annotations(doc):
+        return doc
+
+    if not hasattr(doc, "bake"):
+        raise RuntimeError(
+            "PDF注釈を本文へ焼き込むには PyMuPDF 1.24.2 以上が必要です。"
+            "requirements.txt に従って PyMuPDF を更新してください。"
+        )
+
+    doc.bake(annots=True, widgets=True)
+    return doc
+
+
 def normalize_rotation_doc(src_doc):
     normalized_doc = fitz.open()
 
@@ -89,6 +107,7 @@ def normalize_rotation_doc(src_doc):
 
 def resize_doc_auto_orientation(src_doc, size="A4"):
     base_w, base_h = get_size(size)
+    bake_annotations_into_content(src_doc)
     normalized_doc = normalize_rotation_doc(src_doc)
     dst_doc = fitz.open()
 
