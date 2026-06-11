@@ -789,10 +789,12 @@ class FileSelectorApp:
                 "default_output": "one_pdf_with_bookmarks.pdf",
                 "pdf_filetype": "PDF files",
                 "temp_pdf_notice_title": "Temporary PDF",
-                "temp_pdf_notice_message": "A temporary PDF file will be created while saving the output PDF.\n\nTemporary PDF: {pdf_path}{folder_path}",
+                "temp_pdf_notice_message": "The following temporary PDF file will be created while creating the merged file.\n{pdf_path}",
+                "temp_pdf_and_folder_notice_message": "The following temporary file and folder will be created while creating the merged file.\n{pdf_path}\n{folder_path}",
                 "temp_folder_notice_message": "\nTemporary folder: {path}",
-                "temp_folder_notice_title": "Temporary Folder",
-                "temp_folder_path_message": "Temporary folder: {path}",
+                "temp_folder_notice_title": "Office Conversion",
+                "temp_folder_path_message": "Please close Word, Excel, and PowerPoint during conversion. These apps may shut down or conversion errors may occur.{folder_path}",
+                "temp_folder_path_line": "The following temporary folder will be created during conversion.\n{path}",
             },
             "ja": {
                 "window_title": "kojiPDF - Built with Python by Code4Construct",
@@ -865,10 +867,12 @@ class FileSelectorApp:
                 "default_output": "one_pdf_with_bookmarks.pdf",
                 "pdf_filetype": "PDFファイル",
                 "temp_pdf_notice_title": "一時PDF",
-                "temp_pdf_notice_message": "出力PDFの保存処理中に、一時的なPDFファイルが作成されます。\n\n一時PDF: {pdf_path}{folder_path}",
+                "temp_pdf_notice_message": "結合ファイルの作成中に次の一時的なPDFファイルが作成されます。\n{pdf_path}",
+                "temp_pdf_and_folder_notice_message": "結合ファイルの作成中に次の一時的なファイルとフォルダが作成されます。\n{pdf_path}\n{folder_path}",
                 "temp_folder_notice_message": "\n暫定フォルダ: {path}",
-                "temp_folder_notice_title": "暫定フォルダ",
-                "temp_folder_path_message": "暫定フォルダ: {path}",
+                "temp_folder_notice_title": "Office変換の警告",
+                "temp_folder_path_message": "変換中はWord･Excel･PowerPointを閉じてください。それらのアプリのシャットダウンや変換エラーをおこします。{folder_path}",
+                "temp_folder_path_line": "変換中は次の暫定フォルダが作られます。\n{path}",
             },
         }
         return translations[self.language][key]
@@ -1201,10 +1205,12 @@ class FileSelectorApp:
                 existing_notice.destroy()
 
             temp_pdf_path = output_file_path[:-4] + "temp.PDF"
-            temp_folder_text = ""
+            notice_message_key = "temp_pdf_notice_message"
+            notice_values = {"pdf_path": temp_pdf_path}
             if show_temp_folder:
                 temp_folder_path = os.path.join(os.path.dirname(output_file_path), "temp_folder")
-                temp_folder_text = self._text("temp_folder_notice_message").format(path=temp_folder_path)
+                notice_message_key = "temp_pdf_and_folder_notice_message"
+                notice_values["folder_path"] = temp_folder_path
 
             notice = tk.Toplevel(self.window)
             self._temp_pdf_notice = notice
@@ -1218,10 +1224,7 @@ class FileSelectorApp:
             frame.grid(row=0, column=0, sticky="nsew")
             label = tb.Label(
                 frame,
-                text=self._text("temp_pdf_notice_message").format(
-                    pdf_path=temp_pdf_path,
-                    folder_path=temp_folder_text,
-                ),
+                text=self._text(notice_message_key).format(**notice_values),
                 style="Field.TLabel",
                 justify="left",
                 wraplength=self._px(520),
@@ -1244,9 +1247,13 @@ class FileSelectorApp:
         except tk.TclError:
             pass
 
-    def show_temp_folder_notice(self, output_file_path):
+    def show_temp_folder_notice(self, output_file_path=None):
         try:
-            temp_folder_path = os.path.join(os.path.dirname(output_file_path), "temp_folder")
+            folder_text = ""
+            if output_file_path:
+                temp_folder_path = os.path.join(os.path.dirname(output_file_path), "temp_folder")
+                folder_text = "\n\n" + self._text("temp_folder_path_line").format(path=temp_folder_path)
+
             existing_notice = getattr(self, "_temp_folder_notice", None)
             if existing_notice is not None and existing_notice.winfo_exists():
                 existing_notice.destroy()
@@ -1263,7 +1270,7 @@ class FileSelectorApp:
             frame.grid(row=0, column=0, sticky="nsew")
             label = tb.Label(
                 frame,
-                text=self._text("temp_folder_path_message").format(path=temp_folder_path),
+                text=self._text("temp_folder_path_message").format(folder_path=folder_text),
                 style="Field.TLabel",
                 justify="left",
                 wraplength=self._px(520),
@@ -1325,7 +1332,7 @@ class FileSelectorApp:
     def toggle_office_options(self):
         state = "normal" if self.convert_office_var.get() else "disabled"
         self.ppt_slide_bookmarks_checkbox.configure(state=state)
-        if self.convert_office_var.get() and self.selected_file:
+        if self.convert_office_var.get():
             self.show_temp_folder_notice(self.selected_file)
 
     def select_folder(self):
