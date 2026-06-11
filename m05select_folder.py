@@ -788,6 +788,11 @@ class FileSelectorApp:
                 "file_dialog": "Select output PDF",
                 "default_output": "one_pdf_with_bookmarks.pdf",
                 "pdf_filetype": "PDF files",
+                "temp_pdf_notice_title": "Temporary PDF",
+                "temp_pdf_notice_message": "A temporary PDF file will be created while saving the output PDF.\n\nTemporary PDF: {pdf_path}{folder_path}",
+                "temp_folder_notice_message": "\nTemporary folder: {path}",
+                "temp_folder_notice_title": "Temporary Folder",
+                "temp_folder_path_message": "Temporary folder: {path}",
             },
             "ja": {
                 "window_title": "kojiPDF - Built with Python by Code4Construct",
@@ -859,6 +864,11 @@ class FileSelectorApp:
                 "file_dialog": "出力PDFを指定してください",
                 "default_output": "one_pdf_with_bookmarks.pdf",
                 "pdf_filetype": "PDFファイル",
+                "temp_pdf_notice_title": "一時PDF",
+                "temp_pdf_notice_message": "出力PDFの保存処理中に、一時的なPDFファイルが作成されます。\n\n一時PDF: {pdf_path}{folder_path}",
+                "temp_folder_notice_message": "\n暫定フォルダ: {path}",
+                "temp_folder_notice_title": "暫定フォルダ",
+                "temp_folder_path_message": "暫定フォルダ: {path}",
             },
         }
         return translations[self.language][key]
@@ -1184,6 +1194,98 @@ class FileSelectorApp:
         except tk.TclError:
             pass
 
+    def show_temp_pdf_notice(self, output_file_path, show_temp_folder=False):
+        try:
+            existing_notice = getattr(self, "_temp_pdf_notice", None)
+            if existing_notice is not None and existing_notice.winfo_exists():
+                existing_notice.destroy()
+
+            temp_pdf_path = output_file_path[:-4] + "temp.PDF"
+            temp_folder_text = ""
+            if show_temp_folder:
+                temp_folder_path = os.path.join(os.path.dirname(output_file_path), "temp_folder")
+                temp_folder_text = self._text("temp_folder_notice_message").format(path=temp_folder_path)
+
+            notice = tk.Toplevel(self.window)
+            self._temp_pdf_notice = notice
+            notice.title(self._text("temp_pdf_notice_title"))
+            notice.transient(self.window)
+            notice.resizable(False, False)
+            notice.configure(bg=PANEL_BG)
+            notice.attributes("-topmost", True)
+
+            frame = tb.Frame(notice, padding=self._pad(20, 16), bootstyle="light")
+            frame.grid(row=0, column=0, sticky="nsew")
+            label = tb.Label(
+                frame,
+                text=self._text("temp_pdf_notice_message").format(
+                    pdf_path=temp_pdf_path,
+                    folder_path=temp_folder_text,
+                ),
+                style="Field.TLabel",
+                justify="left",
+                wraplength=self._px(520),
+            )
+            label.grid(row=0, column=0, sticky="w")
+
+            notice.update_idletasks()
+            width = notice.winfo_width()
+            height = notice.winfo_height()
+            parent_x = self.window.winfo_rootx()
+            parent_y = self.window.winfo_rooty()
+            parent_width = self.window.winfo_width()
+            parent_height = self.window.winfo_height()
+            x = parent_x + max(0, (parent_width - width) // 2)
+            y = parent_y + max(0, (parent_height - height) // 2)
+            notice.geometry(f"+{x}+{y}")
+
+            notice.after(5000, lambda: notice.destroy() if notice.winfo_exists() else None)
+            notice.after(200, lambda: notice.attributes("-topmost", False) if notice.winfo_exists() else None)
+        except tk.TclError:
+            pass
+
+    def show_temp_folder_notice(self, output_file_path):
+        try:
+            temp_folder_path = os.path.join(os.path.dirname(output_file_path), "temp_folder")
+            existing_notice = getattr(self, "_temp_folder_notice", None)
+            if existing_notice is not None and existing_notice.winfo_exists():
+                existing_notice.destroy()
+
+            notice = tk.Toplevel(self.window)
+            self._temp_folder_notice = notice
+            notice.title(self._text("temp_folder_notice_title"))
+            notice.transient(self.window)
+            notice.resizable(False, False)
+            notice.configure(bg=PANEL_BG)
+            notice.attributes("-topmost", True)
+
+            frame = tb.Frame(notice, padding=self._pad(20, 16), bootstyle="light")
+            frame.grid(row=0, column=0, sticky="nsew")
+            label = tb.Label(
+                frame,
+                text=self._text("temp_folder_path_message").format(path=temp_folder_path),
+                style="Field.TLabel",
+                justify="left",
+                wraplength=self._px(520),
+            )
+            label.grid(row=0, column=0, sticky="w")
+
+            notice.update_idletasks()
+            width = notice.winfo_width()
+            height = notice.winfo_height()
+            parent_x = self.window.winfo_rootx()
+            parent_y = self.window.winfo_rooty()
+            parent_width = self.window.winfo_width()
+            parent_height = self.window.winfo_height()
+            x = parent_x + max(0, (parent_width - width) // 2)
+            y = parent_y + max(0, (parent_height - height) // 2)
+            notice.geometry(f"+{x}+{y}")
+
+            notice.after(5000, lambda: notice.destroy() if notice.winfo_exists() else None)
+            notice.after(200, lambda: notice.attributes("-topmost", False) if notice.winfo_exists() else None)
+        except tk.TclError:
+            pass
+
     def toggle_scale_mode(self):
         relative_mode = self.scale_mode_var.get() == "relative"
         relative_widgets = (
@@ -1223,6 +1325,8 @@ class FileSelectorApp:
     def toggle_office_options(self):
         state = "normal" if self.convert_office_var.get() else "disabled"
         self.ppt_slide_bookmarks_checkbox.configure(state=state)
+        if self.convert_office_var.get() and self.selected_file:
+            self.show_temp_folder_notice(self.selected_file)
 
     def select_folder(self):
         folder = filedialog.askdirectory(
@@ -1246,6 +1350,7 @@ class FileSelectorApp:
         if file_path:
             self.selected_file = file_path
             self.file_text.set(file_path)
+            self.show_temp_pdf_notice(file_path, show_temp_folder=self.convert_office_var.get())
 
     @property
     def add_page(self):

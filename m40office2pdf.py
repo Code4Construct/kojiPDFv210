@@ -35,8 +35,10 @@ def convert_excel_to_pdf_with_bookmarks(input_path, output_path):
         excel.Visible = False
         wb = excel.Workbooks.Open(os.path.abspath(input_path))
         temp_files = []
+        visible_sheets = [sheet for sheet in wb.Sheets if sheet.Visible == -1]
+        add_sheet_bookmarks = len(visible_sheets) >= 2
 
-        for i, sheet in enumerate(wb.Sheets):
+        for i, sheet in enumerate(visible_sheets):
             sheet_name = sheet.Name
             temp_pdf_path = os.path.join(tempfile.gettempdir(), f"{sheet_name}_{i}.pdf")
 
@@ -49,7 +51,7 @@ def convert_excel_to_pdf_with_bookmarks(input_path, output_path):
                 print(f"エクスポート失敗: {sheet_name}, エラー: {e}")  # エクスポート失敗した場合のエラーメッセージ
 
         wb.Close(False)
-        merge_pdfs_with_bookmarks(temp_files, output_path)
+        merge_pdfs_with_bookmarks(temp_files, output_path, add_bookmarks=add_sheet_bookmarks)
     except Exception as e:
         print(f"Excel変換エラー: {e}")
     finally:
@@ -91,7 +93,7 @@ def convert_pptx_to_pdf(input_path, output_path, ppt_slide_bookmarks=True):
             del ppt_app
         pythoncom.CoUninitialize()
 
-def merge_pdfs_with_bookmarks(temp_files, output_path):
+def merge_pdfs_with_bookmarks(temp_files, output_path, add_bookmarks=True):
     merged_pdf = fitz.open()
     page_index = 0
     toc = []
@@ -99,11 +101,13 @@ def merge_pdfs_with_bookmarks(temp_files, output_path):
     for name, pdf_path in temp_files:
         pdf = fitz.open(pdf_path)
         merged_pdf.insert_pdf(pdf)
-        toc.append([1, name, page_index + 1])
+        if add_bookmarks:
+            toc.append([1, name, page_index + 1])
         page_index += pdf.page_count
         pdf.close()
 
-    merged_pdf.set_toc(toc)
+    if add_bookmarks:
+        merged_pdf.set_toc(toc)
     merged_pdf.save(output_path)
     merged_pdf.close()
 
