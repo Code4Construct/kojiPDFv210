@@ -1,5 +1,6 @@
 import ctypes
 import os
+import queue
 import sys
 from datetime import datetime
 
@@ -259,6 +260,8 @@ class FileSelectorApp:
         self.selected_file = None
         self.accepted = False
         self.retry_requested = False
+        self._progress_queue = queue.Queue()
+        self._progress_poll_after_id = None
         self.language = "ja"
         self.color_choices = {
             "Red": (1, 0, 0),
@@ -637,7 +640,14 @@ class FileSelectorApp:
     def _build_bookmark_options(self, parent=None):
         frame = self._band(0, "bookmark_section_label", parent=parent, column=1, padx=(4, 0))
         frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+        self.add_bookmark_page_number_var = tk.BooleanVar(value=False)
         self.add_page_checkbox = tb.Checkbutton(frame, variable=self.add_page_var, bootstyle="primary-round-toggle")
+        self.add_bookmark_page_number_checkbox = tb.Checkbutton(
+            frame,
+            variable=self.add_bookmark_page_number_var,
+            bootstyle="primary-round-toggle",
+        )
         self.keep_pdf_extension_checkbox = tb.Checkbutton(
             frame,
             variable=self.keep_pdf_extension_var,
@@ -650,7 +660,8 @@ class FileSelectorApp:
             bootstyle="primary-round-toggle",
             command=self.toggle_collapse_spinbox,
         )
-        self.add_page_checkbox.grid(row=1, column=0, columnspan=3, sticky="w", pady=self._px(3))
+        self.add_bookmark_page_number_checkbox.grid(row=1, column=0, sticky="w", pady=self._px(3))
+        self.add_page_checkbox.grid(row=1, column=1, columnspan=2, sticky="w", padx=self._pad(12, 0), pady=self._px(3))
         self.expand_all_checkbox.grid(row=2, column=0, sticky="w", pady=self._px(3))
         self.bookmark_open_level_label = tb.Label(frame, style="Field.TLabel")
         self.bookmark_open_level_label.grid(row=2, column=1, sticky="e", padx=self._pad(16, 8), pady=self._px(3))
@@ -755,8 +766,9 @@ class FileSelectorApp:
                 "completion_title": "Done",
                 "completion_exit_message": "PDF creation is complete.\nExit the program?",
                 "error_title": "Error",
-                "add_page": "Add included page count to bookmark names",
-                "keep_pdf_extension": "Keep .pdf in bookmark names",
+                "add_bookmark_page_number": "Add page number",
+                "add_page": "Add page count",
+                "keep_pdf_extension": "Keep .pdf",
                 "convert_office": "Convert Office files to PDF before merging",
                 "ppt_slide_bookmarks": "Add PowerPoint slide bookmarks",
                 "resize_pdf": "Resize all PDFs to selected page size",
@@ -833,6 +845,7 @@ class FileSelectorApp:
                 "completion_title": "完了",
                 "completion_exit_message": "PDFの作成が完了しました。\nプログラムを終了しますか。",
                 "error_title": "エラー",
+                "add_bookmark_page_number": "しおり名にページを追加",
                 "add_page": "しおり名に含まれるページ数を追加",
                 "keep_pdf_extension": "しおり名に.pdfを残す",
                 "convert_office": "Word・Excel・PowerPointをPDFに変換してから結合",
@@ -935,6 +948,7 @@ class FileSelectorApp:
         self.scale_section_label.configure(text=self._text("scale_options"))
         self.bookmark_section_label.configure(text=self._text("bookmark_options"))
         self.asp_section_label.configure(text=self._text("asp_options"))
+        self.add_bookmark_page_number_checkbox.configure(text=self._text("add_bookmark_page_number"))
         self.add_page_checkbox.configure(text=self._text("add_page"))
         self.keep_pdf_extension_checkbox.configure(text=self._text("keep_pdf_extension"))
         self.convert_office_checkbox.configure(text=self._text("convert_office"))
@@ -1110,6 +1124,7 @@ class FileSelectorApp:
         self.progress_text.grid(row=4, column=0, sticky="nsew", pady=self._pad(0, 6))
         self.progress_text.configure(state="disabled")
         self.append_progress(self._text("progress_started"))
+        self._start_progress_queue_poll()
         self.window.update_idletasks()
         self._fit_window_to_screen()
 
@@ -1160,6 +1175,30 @@ class FileSelectorApp:
             self.window.update()
         except tk.TclError:
             pass
+
+    def queue_progress(self, message):
+        if message:
+            self._progress_queue.put(message)
+
+    def _start_progress_queue_poll(self):
+        if self._progress_poll_after_id is None:
+            self._poll_progress_queue()
+
+    def _poll_progress_queue(self):
+        self._progress_poll_after_id = None
+        try:
+            while True:
+                self.append_progress(self._progress_queue.get_nowait())
+        except queue.Empty:
+            pass
+        except tk.TclError:
+            return
+
+        if hasattr(self, "progress_text"):
+            try:
+                self._progress_poll_after_id = self.window.after(80, self._poll_progress_queue)
+            except tk.TclError:
+                pass
 
     def finish_progress(self, success=True):
         if not hasattr(self, "progress_text"):
@@ -1360,6 +1399,10 @@ class FileSelectorApp:
             self.show_temp_pdf_notice(file_path, show_temp_folder=self.convert_office_var.get())
 
     @property
+    def add_bookmark_page_number(self):
+        return self.add_bookmark_page_number_var.get()
+
+    @property
     def add_page(self):
         return self.add_page_var.get()
 
@@ -1465,6 +1508,7 @@ def select_folder_and_file():
     result = (
         selector.selected_folder,
         selector.selected_file,
+        selector.add_bookmark_page_number,
         selector.add_page,
         selector.convert_office,
         selector.ppt_slide_bookmarks,
@@ -1496,7 +1540,7 @@ class ProgressWriter:
         if self.original is not None:
             self.original.write(message)
         if self.progress_ui is not None:
-            self.progress_ui.append_progress(message)
+            self.progress_ui.queue_progress(message)
 
     def flush(self):
         if self.original is not None:
@@ -1507,6 +1551,7 @@ if __name__ == "__main__":
     (
         folder,
         file_path,
+        add_bookmark_page_number,
         add_page,
         convert_office,
         ppt_slide_bookmarks,
@@ -1528,6 +1573,7 @@ if __name__ == "__main__":
     ) = select_folder_and_file()
     print(f"Selected folder: {folder}")
     print(f"Output file: {file_path}")
+    print(f"Add bookmark page numbers to bookmark labels: {add_bookmark_page_number}")
     print(f"Add page numbers to bookmark labels: {add_page}")
     print(f"Convert Office files: {convert_office}")
     print(f"Add PowerPoint slide bookmarks: {ppt_slide_bookmarks}")

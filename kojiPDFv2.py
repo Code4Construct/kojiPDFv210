@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import threading
 import traceback
 from datetime import datetime
 
@@ -74,6 +75,7 @@ def ensure_output_file_writable(output_file_path):
 def create_pdf(
     folder_path,
     output_file_path,
+    add_bookmark_page_number,
     add_page,
     exist_w_e_file,
     ppt_slide_bookmarks,
@@ -96,7 +98,11 @@ def create_pdf(
 
     if exist_w_e_file:
         print("OfficeファイルをPDFに変換するため、一時フォルダへコピーしています。")
-        folder_path = office_temp_convert.copy_all_folders_to_temp(folder_path, output_file_path, ppt_slide_bookmarks)
+        folder_path = office_temp_convert.copy_all_folders_to_temp(
+            folder_path,
+            output_file_path,
+            ppt_slide_bookmarks,
+        )
 
     invalids = pdf_validation.find_invalid_pdfs_with_errors(folder_path)
     if invalids:
@@ -106,7 +112,6 @@ def create_pdf(
         result += "問題のあるファイルを削除してから、やり直してください。"
         print(result)
         confirmation_dialog.main(result)
-
     else:
         print("すべてのPDFファイルは正常に読み込めます。")
 
@@ -147,9 +152,13 @@ def create_pdf(
         print("電脳ASPer向けにしおり名を最終調整しています。")
         output_pdf = asper_bookmarks.last_bookmarks_rename(output_pdf)
 
-    if add_page:
-        print("しおり名に含まれるページ数を追記しています。")
-        output_pdf = bookmark_page_counts.add_page_number_to_bookmarks(output_pdf)
+    if add_bookmark_page_number or add_page:
+        print("しおり名にページ番号または含まれるページ数を追記しています。")
+        output_pdf = bookmark_page_counts.add_numbers_to_bookmarks(
+            output_pdf,
+            add_bookmark_page_number=add_bookmark_page_number,
+            add_included_page_count=add_page,
+        )
 
     temp_output_path = output_file_path[:-4] + "temp.PDF"
     print("一時PDFを保存しています。")
@@ -194,10 +203,44 @@ def create_pdf(
     print(f"PDF作成が完了しました: {output_file_path}")
 
 
+def run_create_pdf_in_worker(progress_ui, create_pdf_args):
+    result = {"success": False, "error": None}
+
+    def worker():
+        original_stdout = sys.stdout
+        sys.stdout = gui.ProgressWriter(progress_ui, original_stdout)
+        try:
+            create_pdf(*create_pdf_args)
+            result["success"] = True
+        except Exception as exc:
+            result["error"] = exc
+            print("処理中にエラーが発生しました。")
+            traceback.print_exc()
+        finally:
+            sys.stdout = original_stdout
+
+    worker_thread = threading.Thread(target=worker, daemon=True)
+    worker_thread.start()
+
+    if progress_ui is not None:
+        def stop_when_done():
+            if worker_thread.is_alive():
+                progress_ui.window.after(100, stop_when_done)
+            else:
+                progress_ui.window.quit()
+
+        progress_ui.window.after(100, stop_when_done)
+        progress_ui.window.mainloop()
+
+    worker_thread.join()
+    return result
+
+
 def main():
     (
         folder_path,
         output_file_path,
+        add_bookmark_page_number,
         add_page,
         exist_w_e_file,
         ppt_slide_bookmarks,
@@ -228,48 +271,42 @@ def main():
         base_view_width_mm = 330
         base_view_height_mm = 210
 
+    create_pdf_args = (
+        folder_path,
+        output_file_path,
+        add_bookmark_page_number,
+        add_page,
+        exist_w_e_file,
+        ppt_slide_bookmarks,
+        resize_pdf,
+        resize_size,
+        save_options,
+        add_pdf_page_numbers,
+        page_number_options,
+        xratio,
+        yratio,
+        base_view_width_mm,
+        base_view_height_mm,
+        expand_all,
+        collapse_level,
+        asper_format,
+        keep_pdf_extension,
+    )
+
     while True:
         if progress_ui is not None:
             progress_ui.retry_requested = False
 
-        original_stdout = sys.stdout
-        sys.stdout = gui.ProgressWriter(progress_ui, original_stdout)
-        success = False
-        try:
-            create_pdf(
-                folder_path,
-                output_file_path,
-                add_page,
-                exist_w_e_file,
-                ppt_slide_bookmarks,
-                resize_pdf,
-                resize_size,
-                save_options,
-                add_pdf_page_numbers,
-                page_number_options,
-                xratio,
-                yratio,
-                base_view_width_mm,
-                base_view_height_mm,
-                expand_all,
-                collapse_level,
-                asper_format,
-                keep_pdf_extension,
-            )
-            success = True
-        except Exception as exc:
-            print("処理中にエラーが発生しました。")
-            traceback.print_exc()
-            if progress_ui is not None:
-                progress_ui.show_error_message(str(exc))
-        finally:
-            sys.stdout = original_stdout
+        result = run_create_pdf_in_worker(progress_ui, create_pdf_args)
 
         if progress_ui is None:
             break
 
-        progress_ui.finish_progress(success)
-        if success:
+        progress_ui.finish_progress(result["success"])
+        if result["error"] is not None:
+            progress_ui.show_error_message(str(result["error"]))
+
+        if result["success"]:
             exited = progress_ui.confirm_exit_after_completion()
             if not exited:
                 progress_ui.window.mainloop()

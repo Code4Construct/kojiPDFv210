@@ -17,6 +17,7 @@ python -m nuitka ^
   --noinclude-custom-mode=lxml:nofollow ^
   --noinclude-custom-mode=pandas:nofollow ^
   --noinclude-custom-mode=numpy:nofollow ^
+  --noinclude-custom-mode=pymupdf.mupdf:bytecode ^
   --noinclude-numba-mode=nofollow ^
   --noinclude-IPython-mode=nofollow ^
   --noinclude-pytest-mode=nofollow ^
