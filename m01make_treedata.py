@@ -1,6 +1,7 @@
 import os
+
 from fitz import Document
-from pandas import DataFrame, ExcelWriter
+
 
 def collect_pdf_paths(folder_path):
     """Return PDF file paths and empty leaf folders in sorted order."""
@@ -8,16 +9,17 @@ def collect_pdf_paths(folder_path):
     for root, dirs, files in os.walk(folder_path):
         dirs.sort()
         files.sort()
-        
-        pdf_files = [file for file in files if file.lower().endswith('.pdf')]
-        
+
+        pdf_files = [file for file in files if file.lower().endswith(".pdf")]
+
         if pdf_files:
             for pdf_file in pdf_files:
                 paths.append(os.path.join(root, pdf_file))
         elif not dirs:
             paths.append(root)
-            
+
     return paths
+
 
 def get_pdf_page_count(pdf_path):
     """Return the page count of a PDF, or 0 when it cannot be opened."""
@@ -28,39 +30,39 @@ def get_pdf_page_count(pdf_path):
         print(f"Error opening {pdf_path}: {e}")
         return 0
 
+
 def build_tree_data(input_folder):
-    """Build the PDF tree DataFrame and return it with the max folder depth."""
+    """Build tree rows and return them with the max folder depth."""
     paths = collect_pdf_paths(input_folder)
-    data = []
+    row_parts = []
+
     for path in paths:
-        row = []
-        page_count = get_pdf_page_count(path) if path.lower().endswith('.pdf') else 0
-        
-        row.append(page_count)
-        row.append(path)
-        row.append(path)
-        relative_path = path.replace(input_folder + os.sep, '')
+        page_count = get_pdf_page_count(path) if path.lower().endswith(".pdf") else 0
+        relative_path = path.replace(input_folder + os.sep, "")
         parts = relative_path.split(os.sep)
-        row.extend(parts)
+        row_parts.append((page_count, path, parts))
 
-        data.append(row)
+    max_levels = max((len(parts) for _, _, parts in row_parts), default=0)
+    rows = []
+    for page_count, path, parts in row_parts:
+        row = {
+            "Page Count": page_count,
+            "Full Path": path,
+            "sortpath": path,
+        }
+        for index, part in enumerate(parts, start=1):
+            row[f"Level {index}"] = part
+        rows.append(row)
 
-    max_levels = max(len(row) - 3 for row in data)
-    columns = ["Page Count", "Full Path", "sortpath"] + [f"Level {i+1}" for i in range(max_levels)]
-    df = DataFrame(data, columns=columns)
-    return df, max_levels
+    return rows, max_levels
+
 
 def main(input_folder):
     """Compatibility wrapper for older code."""
     return build_tree_data(input_folder)
 
+
 if __name__ == "__main__":
-    input_folder = r"F:\バックアップデータ\201603建築企画代理データ"
-
+    input_folder = r"F:\backup_data\sample"
     df, max_levels = build_tree_data(input_folder)
-
-    with ExcelWriter('Treedata.xlsx') as writer:
-        df.to_excel(writer, index=False)
-
-
-
+    print(df)

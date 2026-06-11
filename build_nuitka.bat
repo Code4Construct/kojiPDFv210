@@ -15,9 +15,12 @@ python -m nuitka ^
   --noinclude-custom-mode=bs4:nofollow ^
   --noinclude-custom-mode=html5lib:nofollow ^
   --noinclude-custom-mode=lxml:nofollow ^
+  --noinclude-custom-mode=pandas:nofollow ^
+  --noinclude-custom-mode=numpy:nofollow ^
   --noinclude-numba-mode=nofollow ^
   --noinclude-IPython-mode=nofollow ^
   --noinclude-pytest-mode=nofollow ^
+  --report=build-report.xml ^
   --windows-console-mode=disable ^
   --windows-icon-from-ico=assets\icons\smallicon_v2.ico ^
   --windows-company-name="Code4Construct" ^
