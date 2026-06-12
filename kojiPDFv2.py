@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import tempfile
 import threading
 import traceback
 from datetime import datetime
@@ -30,7 +31,7 @@ def log_unhandled_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = log_unhandled_exception
 startup_log("kojiPDF process started")
 
-from fitz import open as fitz_open
+from fitz import TOOLS, open as fitz_open
 
 import m01make_treedata as tree_data
 import m02merge_from_treedata as pdf_merge
@@ -72,12 +73,80 @@ def ensure_output_file_writable(output_file_path):
         ) from exc
 
 
+def save_pdf_collecting_mupdf_warnings(pdf_document, output_file_path, save_options):
+    TOOLS.reset_mupdf_warnings()
+    TOOLS.mupdf_display_errors(False)
+    TOOLS.mupdf_display_warnings(False)
+    try:
+        pdf_document.save(output_file_path, **save_options)
+        return TOOLS.mupdf_warnings()
+    finally:
+        TOOLS.mupdf_display_errors(True)
+        TOOLS.mupdf_display_warnings(True)
+
+
+def save_final_pdf(pdf_document, output_file_path, save_options):
+    output_dir = os.path.dirname(os.path.abspath(output_file_path)) or "."
+    candidate_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix="kojiPDF_final_",
+            suffix=".pdf",
+            dir=output_dir,
+            delete=False,
+        ) as candidate_file:
+            candidate_path = candidate_file.name
+
+        warnings = save_pdf_collecting_mupdf_warnings(
+            pdf_document,
+            candidate_path,
+            dict(save_options),
+        )
+
+        should_retry_clean = bool(warnings)
+        if should_retry_clean:
+            should_retry_clean = confirmation_dialog.main(
+                "PDF保存時にMuPDF警告が検出されました。\n"
+                "通常保存のPDFは作成できていますが、古い内部参照が残っている可能性があります。\n"
+                "クリーン保存（garbage=4）で保存し直しますか。"
+            )
+
+        if should_retry_clean:
+            os.remove(candidate_path)
+            with tempfile.NamedTemporaryFile(
+                prefix="kojiPDF_final_clean_",
+                suffix=".pdf",
+                dir=output_dir,
+                delete=False,
+            ) as candidate_file:
+                candidate_path = candidate_file.name
+
+            clean_save_options = dict(save_options)
+            clean_save_options["garbage"] = max(int(clean_save_options.get("garbage", 0)), 4)
+            clean_save_options["clean"] = True
+            clean_warnings = save_pdf_collecting_mupdf_warnings(
+                pdf_document,
+                candidate_path,
+                clean_save_options,
+            )
+            if clean_warnings:
+                print("MuPDF warnings remained after clean save.")
+
+        os.replace(candidate_path, output_file_path)
+        candidate_path = None
+    finally:
+        if candidate_path and os.path.exists(candidate_path):
+            os.remove(candidate_path)
+
+
 def create_pdf(
     folder_path,
     output_file_path,
     add_bookmark_page_number,
     add_page,
     exist_w_e_file,
+    confirm_temp_folder_delete,
     ppt_slide_bookmarks,
     resize_pdf,
     resize_size,
@@ -105,6 +174,10 @@ def create_pdf(
         )
 
     invalids = pdf_validation.find_invalid_pdfs_with_errors(folder_path)
+    invalid_pdf_paths = {
+        os.path.normcase(os.path.abspath(path))
+        for path, _message in invalids
+    }
     if invalids:
         result = "問題のあるPDFファイル一覧:\n"
         for path, msg in invalids:
@@ -116,7 +189,9 @@ def create_pdf(
         print("すべてのPDFファイルは正常に読み込めます。")
 
     print("フォルダー構造を解析しています。")
-    df, max_levels = tree_data.build_tree_data(folder_path)
+    df, max_levels = tree_data.build_tree_data(folder_path, excluded_paths=invalid_pdf_paths)
+    if invalid_pdf_paths:
+        print(f"Skipping {len(invalid_pdf_paths)} invalid PDF file(s).")
 
     if asper_format:
         print("電脳ASPer向けにしおり名を調整しています。")
@@ -187,14 +262,16 @@ def create_pdf(
     print("最終PDFを保存しています。")
     ensure_output_file_writable(output_file_path)
     output_pdf.xref_set_key(output_pdf.pdf_catalog(), "PageMode", "/UseOutlines")
-    output_pdf.save(output_file_path, **save_options)
+    save_final_pdf(output_pdf, output_file_path, save_options)
     output_pdf.close()
 
     print("一時PDFを削除しています。")
     os.remove(temp_output_path)
 
     if exist_w_e_file:
-        should_delete_folder = confirmation_dialog.main(f"{folder_path}を削除します。\nよろしいですか。")
+        should_delete_folder = True
+        if confirm_temp_folder_delete:
+            should_delete_folder = confirmation_dialog.main(f"{folder_path}を削除します。\nよろしいですか。")
         if should_delete_folder:
             shutil.rmtree(folder_path)
         else:
@@ -243,6 +320,7 @@ def main():
         add_bookmark_page_number,
         add_page,
         exist_w_e_file,
+        confirm_temp_folder_delete,
         ppt_slide_bookmarks,
         resize_pdf,
         resize_size,
@@ -277,6 +355,7 @@ def main():
         add_bookmark_page_number,
         add_page,
         exist_w_e_file,
+        confirm_temp_folder_delete,
         ppt_slide_bookmarks,
         resize_pdf,
         resize_size,

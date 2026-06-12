@@ -2,6 +2,12 @@ import os
 import tempfile
 import fitz  # PyMuPDF
 
+WORD_EXTENSIONS = {'.doc', '.docx', '.docm'}
+EXCEL_EXTENSIONS = {'.xls', '.xlsx', '.xlsm'}
+POWERPOINT_EXTENSIONS = {'.ppt', '.pptx', '.pptm'}
+SUPPORTED_OFFICE_EXTENSIONS = WORD_EXTENSIONS | EXCEL_EXTENSIONS | POWERPOINT_EXTENSIONS
+
+
 def convert_word_to_pdf(input_path, output_path):
     import pythoncom
     import win32com.client
@@ -127,11 +133,11 @@ def convert_to_pdf(input_path, ppt_slide_bookmarks=True):
 
     try:
         ext = ext.lower()
-        if ext in ['.doc', '.docx']:
+        if ext in WORD_EXTENSIONS:
             convert_word_to_pdf(input_path, output_path)
-        elif ext in ['.xls', '.xlsx']:
+        elif ext in EXCEL_EXTENSIONS:
             convert_excel_to_pdf_with_bookmarks(input_path, output_path)
-        elif ext in ['.ppt', '.pptx']:
+        elif ext in POWERPOINT_EXTENSIONS:
             convert_pptx_to_pdf(input_path, output_path, ppt_slide_bookmarks)
         else:
             print("対応していないファイル形式です。（対応形式: .doc, .docx, .xls, .xlsx, .ppt, .pptx）")

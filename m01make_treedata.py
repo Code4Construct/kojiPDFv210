@@ -31,12 +31,15 @@ def get_pdf_page_count(pdf_path):
         return 0
 
 
-def build_tree_data(input_folder):
+def build_tree_data(input_folder, excluded_paths=None):
     """Build tree rows and return them with the max folder depth."""
+    excluded_paths = excluded_paths or set()
     paths = collect_pdf_paths(input_folder)
     row_parts = []
 
     for path in paths:
+        if os.path.normcase(os.path.abspath(path)) in excluded_paths:
+            continue
         page_count = get_pdf_page_count(path) if path.lower().endswith(".pdf") else 0
         relative_path = path.replace(input_folder + os.sep, "")
         parts = relative_path.split(os.sep)

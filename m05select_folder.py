@@ -512,6 +512,7 @@ class FileSelectorApp:
         self.add_page_var = tk.BooleanVar(value=False)
         self.convert_office_var = tk.BooleanVar(value=False)
         self.ppt_slide_bookmarks_var = tk.BooleanVar(value=False)
+        self.confirm_temp_folder_delete_var = tk.BooleanVar(value=False)
         self.resize_pdf_var = tk.BooleanVar(value=False)
         self.asper_format_var = tk.BooleanVar(value=False)
         self.keep_pdf_extension_var = tk.BooleanVar(value=False)
@@ -528,6 +529,11 @@ class FileSelectorApp:
             variable=self.ppt_slide_bookmarks_var,
             bootstyle="primary-round-toggle",
         )
+        self.confirm_temp_folder_delete_checkbox = tb.Checkbutton(
+            frame,
+            variable=self.confirm_temp_folder_delete_var,
+            bootstyle="primary-round-toggle",
+        )
         resize_row = tb.Frame(frame, style="Band.TFrame")
         self.resize_pdf_checkbox = tb.Checkbutton(resize_row, variable=self.resize_pdf_var, bootstyle="primary-round-toggle")
         self.save_mode_label = tb.Label(frame, style="Field.TLabel")
@@ -540,7 +546,8 @@ class FileSelectorApp:
         )
         self.convert_office_checkbox.grid(row=1, column=0, sticky="w", pady=self._px(3))
         self.ppt_slide_bookmarks_checkbox.grid(row=2, column=0, sticky="w", padx=self._pad(66, 0), pady=self._px(3))
-        resize_row.grid(row=3, column=0, sticky="w", pady=self._px(3))
+        self.confirm_temp_folder_delete_checkbox.grid(row=3, column=0, sticky="w", padx=self._pad(66, 0), pady=self._px(3))
+        resize_row.grid(row=4, column=0, sticky="w", pady=self._px(3))
         self.resize_pdf_checkbox.pack(side="left")
         self.resize_size_var = tk.StringVar(value="A4")
         self.resize_size_combo = tb.Combobox(resize_row, textvariable=self.resize_size_var, values=["A3", "A4", "A5", "B4", "B5"], width=8, state="readonly")
@@ -697,7 +704,7 @@ class FileSelectorApp:
         return spinbox
 
     def _draw_run_button(self, hover=False):
-        if not hasattr(self, "run_button"):
+        if not self._widget_exists("run_button"):
             return
         key = "run_hover_image" if hover else "run_image"
         image = make_run_image(self._text("create_short"), hover, self.ui_scale)
@@ -723,9 +730,20 @@ class FileSelectorApp:
 
     def _set_language(self, language):
         self.language = language
-        self.japanese_button.set_checked(language == "ja")
-        self.english_button.set_checked(language == "en")
+        if self._widget_exists("japanese_button"):
+            self.japanese_button.set_checked(language == "ja")
+        if self._widget_exists("english_button"):
+            self.english_button.set_checked(language == "en")
         self._apply_language()
+
+    def _widget_exists(self, attr_name):
+        widget = getattr(self, attr_name, None)
+        if widget is None:
+            return False
+        try:
+            return bool(widget.winfo_exists())
+        except tk.TclError:
+            return False
 
     def _text(self, key):
         translations = {
@@ -770,6 +788,7 @@ class FileSelectorApp:
                 "add_page": "Add page count",
                 "keep_pdf_extension": "Keep .pdf",
                 "convert_office": "Convert Office files to PDF before merging",
+                "confirm_temp_folder_delete": "Confirm temp folder delete",
                 "ppt_slide_bookmarks": "Add PowerPoint slide bookmarks",
                 "resize_pdf": "Resize all PDFs to selected page size",
                 "save_mode": "Save mode",
@@ -849,6 +868,7 @@ class FileSelectorApp:
                 "add_page": "しおり名に含まれるページ数を追加",
                 "keep_pdf_extension": "しおり名に.pdfを残す",
                 "convert_office": "Word・Excel・PowerPointをPDFに変換してから結合",
+                "confirm_temp_folder_delete": "暫定フォルダ削除確認",
                 "ppt_slide_bookmarks": "PowerPointのスライドしおりを付ける",
                 "resize_pdf": "すべてのPDFを指定サイズに変更",
                 "save_mode": "保存方式",
@@ -943,6 +963,20 @@ class FileSelectorApp:
         self.window.after_idle(self._sync_notice_wraplength)
         self.folder_button.configure(text=self._text("select_folder"))
         self.file_button.configure(text=self._text("output"))
+
+        if not self._widget_exists("general_section_label"):
+            if hasattr(self, "folder_text"):
+                self.folder_text.set(self.selected_folder or self._text("not_selected"))
+            if hasattr(self, "file_text"):
+                self.file_text.set(self.selected_file or self._text("not_selected"))
+            if self._widget_exists("japanese_button"):
+                self.japanese_button.set_checked(self.language == "ja")
+            if self._widget_exists("english_button"):
+                self.english_button.set_checked(self.language == "en")
+            self._refresh_progress_language()
+            self._draw_run_button()
+            return
+
         self.general_section_label.configure(text=self._text("general_options"))
         self.page_number_section_label.configure(text=self._text("page_number_options"))
         self.scale_section_label.configure(text=self._text("scale_options"))
@@ -952,6 +986,7 @@ class FileSelectorApp:
         self.add_page_checkbox.configure(text=self._text("add_page"))
         self.keep_pdf_extension_checkbox.configure(text=self._text("keep_pdf_extension"))
         self.convert_office_checkbox.configure(text=self._text("convert_office"))
+        self.confirm_temp_folder_delete_checkbox.configure(text=self._text("confirm_temp_folder_delete"))
         self.ppt_slide_bookmarks_checkbox.configure(text=self._text("ppt_slide_bookmarks"))
         self.resize_pdf_checkbox.configure(text=self._text("resize_pdf"))
         self.save_mode_label.configure(text=self._text("save_mode"))
@@ -978,6 +1013,21 @@ class FileSelectorApp:
         self.japanese_button.set_checked(self.language == "ja")
         self.english_button.set_checked(self.language == "en")
         self._draw_run_button()
+
+    def _refresh_progress_language(self):
+        if self._widget_exists("progress_title_label"):
+            self.progress_title_label.configure(text=self._text("progress_title"))
+
+        if not hasattr(self, "progress_steps") or not hasattr(self, "progress_step_labels"):
+            return
+
+        current_index = getattr(self, "progress_step_index", 0)
+        self.progress_steps = self._progress_steps()
+        self.progress_step_index = min(current_index, len(self.progress_step_labels) - 1)
+        for index, label in enumerate(self.progress_step_labels):
+            if label.winfo_exists():
+                label.configure(text=f"{index + 1}. {self.progress_steps[index]['label']}")
+        self._set_progress_step(self.progress_step_index)
 
     def _apply_save_mode_labels(self):
         mode_labels = self._text("save_modes")
@@ -1371,6 +1421,9 @@ class FileSelectorApp:
     def toggle_office_options(self):
         state = "normal" if self.convert_office_var.get() else "disabled"
         self.ppt_slide_bookmarks_checkbox.configure(state=state)
+        self.confirm_temp_folder_delete_checkbox.configure(state=state)
+        if not self.convert_office_var.get():
+            self.confirm_temp_folder_delete_var.set(False)
         if self.convert_office_var.get():
             self.show_temp_folder_notice(self.selected_file)
 
@@ -1409,6 +1462,10 @@ class FileSelectorApp:
     @property
     def convert_office(self):
         return self.convert_office_var.get()
+
+    @property
+    def confirm_temp_folder_delete(self):
+        return self.confirm_temp_folder_delete_var.get()
 
     @property
     def ppt_slide_bookmarks(self):
@@ -1511,6 +1568,7 @@ def select_folder_and_file():
         selector.add_bookmark_page_number,
         selector.add_page,
         selector.convert_office,
+        selector.confirm_temp_folder_delete,
         selector.ppt_slide_bookmarks,
         selector.resize_pdf,
         selector.resize_size,
@@ -1554,6 +1612,7 @@ if __name__ == "__main__":
         add_bookmark_page_number,
         add_page,
         convert_office,
+        confirm_temp_folder_delete,
         ppt_slide_bookmarks,
         resize_pdf,
         resize_size,
@@ -1576,6 +1635,7 @@ if __name__ == "__main__":
     print(f"Add bookmark page numbers to bookmark labels: {add_bookmark_page_number}")
     print(f"Add page numbers to bookmark labels: {add_page}")
     print(f"Convert Office files: {convert_office}")
+    print(f"Confirm temp folder delete: {confirm_temp_folder_delete}")
     print(f"Add PowerPoint slide bookmarks: {ppt_slide_bookmarks}")
     print(f"Resize PDF pages: {resize_pdf}")
     print(f"Resize PDF page size: {resize_size}")
